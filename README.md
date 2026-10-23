@@ -53,6 +53,7 @@ folder's frontend environment.
 ## Keeping the admin copy current
 
 `src/components/admin.tsx` is copied from the main Nexora frontend. Copy changes
-to the main admin component into this file when updating either project. The
-API implementation and sensitive configuration remain in the existing Nexora
-backend and are intentionally not duplicated here.
+to the main admin component into this file when updating either project. Keep
+`src/services/announcement.ts` in sync with the backend's announcement contract
+and default content. The API implementation and sensitive configuration remain
+in the existing Nexora backend and are intentionally not duplicated here.

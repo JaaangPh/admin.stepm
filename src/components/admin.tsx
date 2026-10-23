@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl } from '../services/api';
 import type { RunnerPrice, RunnerRules } from '../services/api';
-import { DEFAULT_ANNOUNCEMENT, type AnnouncementContent } from '../../../shared/announcement';
+import { DEFAULT_ANNOUNCEMENT, type AnnouncementContent } from '../services/announcement';
 
 type AdminScreen = 'login' | 'setup' | 'verify' | 'dashboard';
 type TransactionType = 'deposit' | 'withdrawal';
