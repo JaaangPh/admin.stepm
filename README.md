@@ -3,8 +3,12 @@
 This is a standalone copy of the Stepora admin frontend. It can be moved to its
 own GitHub repository and hosted on a separate domain such as `admin.example.com`.
 It continues to use the existing Nexora API, so dashboard data and changes
-(including Runner rules, grants, and withdrawal reviews) use the same backend
+(including announcements, Runner rules, grants, and withdrawal reviews) use the same backend
 and Firestore database as `/admin`.
+
+Administrators can edit the user-facing announcement from the **Announcement**
+item in the admin navigation. Its title, subtitle, body, and optional image path
+are saved through the Nexora API and displayed in the main app.
 
 ## Configure the API
 

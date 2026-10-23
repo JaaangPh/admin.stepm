@@ -15,6 +15,7 @@ import {
   LoaderCircle,
   LogOut,
   Menu,
+  Megaphone,
   Percent,
   RefreshCw,
   Search,
@@ -27,12 +28,13 @@ import {
 } from 'lucide-react';
 import { getApiBaseUrl } from '../services/api';
 import type { RunnerPrice, RunnerRules } from '../services/api';
+import { DEFAULT_ANNOUNCEMENT, type AnnouncementContent } from '../../../shared/announcement';
 
 type AdminScreen = 'login' | 'setup' | 'verify' | 'dashboard';
 type TransactionType = 'deposit' | 'withdrawal';
 type DateRange = '24h' | '7d' | '30d' | 'all';
 type AdminRole = 'admin' | 'staff';
-type AdminView = 'overview' | TransactionType | 'runner-purchases' | 'profile' | 'security' | 'staff-team' | 'runner-pricing' | 'runner';
+type AdminView = 'overview' | TransactionType | 'runner-purchases' | 'profile' | 'security' | 'staff-team' | 'runner-pricing' | 'runner' | 'announcement';
 
 interface AdminTransaction {
   id: string;
@@ -302,6 +304,9 @@ export const Admin: React.FC = () => {
   const [grantRunnerUserId, setGrantRunnerUserId] = useState('');
   const [grantRunnerType, setGrantRunnerType] = useState('snk-1');
   const [isGrantingRunner, setIsGrantingRunner] = useState(false);
+  const [announcement, setAnnouncement] = useState<AnnouncementContent>(DEFAULT_ANNOUNCEMENT);
+  const [isLoadingAnnouncement, setIsLoadingAnnouncement] = useState(false);
+  const [isSavingAnnouncement, setIsSavingAnnouncement] = useState(false);
 
   const loadTransactions = async (token: string) => {
     const result = await adminRequest<{
@@ -407,6 +412,23 @@ export const Admin: React.FC = () => {
       })
       .finally(() => {
         if (isCurrent) setIsLoadingRunnerRules(false);
+      });
+    return () => { isCurrent = false; };
+  }, [activeView, role, sessionToken]);
+
+  useEffect(() => {
+    if (!sessionToken || role !== 'admin' || activeView !== 'announcement') return;
+    let isCurrent = true;
+    setIsLoadingAnnouncement(true);
+    adminRequest<{ announcement: AnnouncementContent }>('/api/admin/announcement', { method: 'GET' }, sessionToken)
+      .then((result) => {
+        if (isCurrent) setAnnouncement(result.announcement);
+      })
+      .catch((loadError: unknown) => {
+        if (isCurrent) setError(loadError instanceof Error ? loadError.message : 'Could not load the announcement.');
+      })
+      .finally(() => {
+        if (isCurrent) setIsLoadingAnnouncement(false);
       });
     return () => { isCurrent = false; };
   }, [activeView, role, sessionToken]);
@@ -794,6 +816,33 @@ export const Admin: React.FC = () => {
     }
   };
 
+  const saveAnnouncement = async (event: FormEvent) => {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+    setIsSavingAnnouncement(true);
+    try {
+      const result = await adminRequest<{
+        announcement: AnnouncementContent;
+        message: string;
+      }>('/api/admin/announcement', {
+        method: 'PUT',
+        body: JSON.stringify({
+          title: announcement.title,
+          subtitle: announcement.subtitle,
+          body: announcement.body,
+          imageUrl: announcement.imageUrl,
+        }),
+      }, sessionToken);
+      setAnnouncement(result.announcement);
+      setNotice(result.message);
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Could not update the announcement.');
+    } finally {
+      setIsSavingAnnouncement(false);
+    }
+  };
+
   const logout = () => {
     sessionStorage.removeItem(SESSION_KEY);
     setSessionToken('');
@@ -992,6 +1041,14 @@ export const Admin: React.FC = () => {
                 <UserRound className="h-5 w-5" />
               </button>
               <button
+                title="Announcement"
+                aria-label="Announcement"
+                onClick={() => { setActiveView('announcement'); setMobileNavOpen(false); }}
+                className={`grid h-11 w-11 place-items-center rounded-xl border-l-[3px] transition ${activeView === 'announcement' ? 'border-cyan-300 bg-[#142b5b] text-cyan-200' : 'border-transparent text-[#c5bfbb] hover:bg-[#10234a]'}`}
+              >
+                <Megaphone className="h-5 w-5" />
+              </button>
+              <button
                 title="Staff team"
                 aria-label="Staff team"
                 onClick={() => { setActiveView('staff-team'); setMobileNavOpen(false); }}
@@ -1023,8 +1080,8 @@ export const Admin: React.FC = () => {
               <Menu className="h-4 w-4" />
             </button>
             <div className="flex items-center gap-2 text-sm font-semibold">
-              {activeView === 'overview' ? <LayoutDashboard className="h-4 w-4 text-[#f15408]" /> : activeView === 'security' ? <ShieldCheck className="h-4 w-4 text-[#f15408]" /> : activeView === 'staff-team' ? <Users className="h-4 w-4 text-cyan-300" /> : activeView === 'runner-purchases' ? <ShoppingBag className="h-4 w-4 text-[#f15408]" /> : activeView === 'runner' ? <Footprints className="h-4 w-4 text-cyan-300" /> : activeView === 'runner-pricing' ? <Percent className="h-4 w-4 text-cyan-300" /> : activeView === 'profile' ? <UserRound className="h-4 w-4 text-[#f15408]" /> : <ArrowLeftRight className="h-4 w-4 text-[#f15408]" />}
-              {activeView === 'overview' ? 'Dashboard' : activeView === 'security' ? 'Security & accounts' : activeView === 'staff-team' ? 'Staff team' : activeView === 'deposit' ? 'Deposits' : activeView === 'withdrawal' ? 'Withdrawals' : activeView === 'runner-purchases' ? 'Runner purchases' : activeView === 'runner' ? 'Runner' : activeView === 'runner-pricing' ? 'Runner prices' : 'User profile'}
+              {activeView === 'overview' ? <LayoutDashboard className="h-4 w-4 text-[#f15408]" /> : activeView === 'security' ? <ShieldCheck className="h-4 w-4 text-[#f15408]" /> : activeView === 'staff-team' ? <Users className="h-4 w-4 text-cyan-300" /> : activeView === 'runner-purchases' ? <ShoppingBag className="h-4 w-4 text-[#f15408]" /> : activeView === 'runner' ? <Footprints className="h-4 w-4 text-cyan-300" /> : activeView === 'runner-pricing' ? <Percent className="h-4 w-4 text-cyan-300" /> : activeView === 'profile' ? <UserRound className="h-4 w-4 text-[#f15408]" /> : activeView === 'announcement' ? <Megaphone className="h-4 w-4 text-cyan-300" /> : <ArrowLeftRight className="h-4 w-4 text-[#f15408]" />}
+              {activeView === 'overview' ? 'Dashboard' : activeView === 'security' ? 'Security & accounts' : activeView === 'staff-team' ? 'Staff team' : activeView === 'deposit' ? 'Deposits' : activeView === 'withdrawal' ? 'Withdrawals' : activeView === 'runner-purchases' ? 'Runner purchases' : activeView === 'runner' ? 'Runner' : activeView === 'runner-pricing' ? 'Runner prices' : activeView === 'announcement' ? 'Announcement' : 'User profile'}
             </div>
           </div>
           <div className="flex items-center gap-3">
@@ -1059,7 +1116,7 @@ export const Admin: React.FC = () => {
             </div>
           )}
 
-          {activeView !== 'security' && activeView !== 'staff-team' && activeView !== 'profile' && activeView !== 'runner-pricing' && activeView !== 'runner' && <div className="flex flex-wrap items-center justify-between gap-3">
+          {activeView !== 'security' && activeView !== 'staff-team' && activeView !== 'profile' && activeView !== 'runner-pricing' && activeView !== 'runner' && activeView !== 'announcement' && <div className="flex flex-wrap items-center justify-between gap-3">
             <div className="flex flex-wrap gap-2">
               {rangeLabels.map(({ id, label }) => (
                 <button
@@ -1435,6 +1492,81 @@ export const Admin: React.FC = () => {
             </section>
           )}
 
+          {activeView === 'announcement' && role === 'admin' && (
+            <section className="max-w-3xl rounded-xl border border-[#1e3a78] bg-[#081b3d] p-5 sm:p-6">
+              <div className="mb-5 flex items-center gap-3">
+                <span className="grid h-10 w-10 place-items-center rounded-xl bg-cyan-500/10 text-cyan-300"><Megaphone className="h-5 w-5" /></span>
+                <div>
+                  <h2 className="text-base font-bold text-white">Edit user announcement</h2>
+                  <p className="mt-1 text-xs leading-5 text-[#8f9fba]">Changes are saved for all users and appear in the app announcement. A new version will be shown even to users who dismissed the previous one.</p>
+                </div>
+              </div>
+              {isLoadingAnnouncement ? (
+                <p className="py-8 text-center text-xs text-[#8f9fba]">
+                  <LoaderCircle className="mx-auto mb-2 h-4 w-4 animate-spin text-cyan-300" />
+                  Loading announcement…
+                </p>
+              ) : (
+                <form onSubmit={saveAnnouncement} className="space-y-4">
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-[#d6cfcb]" htmlFor="announcement-title-input">Title</label>
+                    <input
+                      id="announcement-title-input"
+                      required
+                      maxLength={120}
+                      value={announcement.title}
+                      onChange={(event) => setAnnouncement((current) => ({ ...current, title: event.target.value }))}
+                      className="w-full rounded-lg border border-[#24466f] bg-[#06132e] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-[#d6cfcb]" htmlFor="announcement-subtitle-input">Subtitle</label>
+                    <input
+                      id="announcement-subtitle-input"
+                      maxLength={200}
+                      value={announcement.subtitle}
+                      onChange={(event) => setAnnouncement((current) => ({ ...current, subtitle: event.target.value }))}
+                      className="w-full rounded-lg border border-[#24466f] bg-[#06132e] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300"
+                    />
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-[#d6cfcb]" htmlFor="announcement-body-input">Announcement body</label>
+                    <textarea
+                      id="announcement-body-input"
+                      required
+                      maxLength={5000}
+                      rows={10}
+                      value={announcement.body}
+                      onChange={(event) => setAnnouncement((current) => ({ ...current, body: event.target.value }))}
+                      aria-describedby="announcement-body-help"
+                      className="w-full resize-y rounded-lg border border-[#24466f] bg-[#06132e] px-3 py-2.5 text-sm leading-6 text-white outline-none focus:border-cyan-300"
+                    />
+                    <p id="announcement-body-help" className="mt-1.5 text-[10px] text-[#8f9fba]">Separate paragraphs with a blank line. Single line breaks are preserved.</p>
+                  </div>
+                  <div>
+                    <label className="mb-1.5 block text-xs font-semibold text-[#d6cfcb]" htmlFor="announcement-image-input">Image URL or path (optional)</label>
+                    <input
+                      id="announcement-image-input"
+                      type="text"
+                      maxLength={500}
+                      value={announcement.imageUrl}
+                      onChange={(event) => setAnnouncement((current) => ({ ...current, imageUrl: event.target.value }))}
+                      placeholder="/images/stepora-announcement.png"
+                      className="w-full rounded-lg border border-[#24466f] bg-[#06132e] px-3 py-2.5 text-sm text-white outline-none focus:border-cyan-300"
+                    />
+                  </div>
+                  <button
+                    disabled={isSavingAnnouncement}
+                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-[#e94f08] px-4 py-3 text-sm font-bold text-white hover:bg-[#ff6418] disabled:opacity-50"
+                  >
+                    {isSavingAnnouncement && <LoaderCircle className="h-4 w-4 animate-spin" />}
+                    Save announcement
+                  </button>
+                </form>
+              )}
+            </section>
+          )}
+
           {activeView === 'overview' && (
             <>
               <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
@@ -1662,10 +1794,10 @@ function UserProfileSection({
                 <Activity className="h-4 w-4 text-cyan-300" />
                 Users with active workouts
               </h3>
-              <p className="mt-1 text-[10px] text-[#8f9fba]">Updates automatically every 5 seconds.</p>
+              <p className="mt-1 text-[10px] text-[#8f9fba]">Includes paused workouts. Updates automatically every 5 seconds.</p>
             </div>
             <span className="rounded-full bg-cyan-500/10 px-2.5 py-1 text-[10px] font-bold text-cyan-200">
-              {activeWorkouts.length} active
+              {activeWorkouts.length} workouts
             </span>
           </div>
           {activeWorkoutsError && <p role="alert" className="mb-3 text-xs text-rose-300">{activeWorkoutsError}</p>}
